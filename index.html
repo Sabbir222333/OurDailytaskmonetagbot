@@ -1,0 +1,93 @@
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, CallbackContext
+import requests
+
+# Global Variables
+ads_count = 0
+
+# Function to Get IP and Country Info
+def get_user_ip_country():
+    try:
+        response = requests.get("https://ipinfo.io")
+        data = response.json()
+        ip = data.get("ip", "Unknown IP")
+        country = data.get("country", "Unknown Country")
+        return ip, country
+    except:
+        return "Unknown IP", "Unknown Country"
+
+# Start Command
+async def start(update: Update, context: CallbackContext):
+    keyboard = [
+        [InlineKeyboardButton("Task 1: Ads Info", callback_data="task1")],
+        [InlineKeyboardButton("Task 2: Auto Ads", callback_data="task2")],
+        [InlineKeyboardButton("Task 3: Coming Soon", callback_data="task3")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Welcome! Choose a task:", reply_markup=reply_markup)
+
+# Task 1: Display Ads Count, IP, and Country
+async def task1(update: Update, context: CallbackContext):
+    global ads_count
+    ip, country = get_user_ip_country()
+    message = f"📊 **Ads Seen**: {ads_count}\n🌍 **IP Address**: {ip}\n🏴 **Country**: {country}"
+    await update.callback_query.message.reply_text(message, parse_mode="Markdown")
+
+# Task 2: Unlimited Auto Ads
+async def task2(update: Update, context: CallbackContext):
+    global ads_count
+
+    # Example Ad URL (Replace with your hosted ad link)
+    ad_url = "https://your-hosted-ad-page.com"
+
+    # Increment Ads Count and Display
+    ads_count += 1
+    keyboard = [[InlineKeyboardButton("View Ad", url=ad_url)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.message.reply_text(
+        f"Ad {ads_count}: Click the button below to view!", reply_markup=reply_markup
+    )
+
+    # Auto Trigger Next Ad
+    context.job_queue.run_once(auto_ads, 10, context=update.callback_query.message.chat_id)
+
+# Auto Ads Function (Recursive for Unlimited Ads)
+async def auto_ads(context: CallbackContext):
+    global ads_count
+
+    # Example Ad URL
+    ad_url = "https://your-hosted-ad-page.com"
+
+    # Increment Ads Count and Display
+    ads_count += 1
+    keyboard = [[InlineKeyboardButton("View Ad", url=ad_url)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await context.bot.send_message(
+        chat_id=context.job.context,
+        text=f"Ad {ads_count}: Click the button below to view!",
+        reply_markup=reply_markup,
+    )
+
+    # Recursively Call Itself for Unlimited Ads
+    context.job_queue.run_once(auto_ads, 10, context=context.job.context)
+
+# Task 3: Placeholder
+async def task3(update: Update, context: CallbackContext):
+    await update.callback_query.message.reply_text("Task 3 functionality is coming soon!")
+
+# Main Function
+def main():
+    # Replace with your Telegram Bot API Token
+    application = Application.builder().token("7385827411:AAFdKBwrByO2tJSBs5jCsdOWYQVJB0u21gQ").build()
+
+    # Command Handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(task1, pattern="task1"))
+    application.add_handler(CallbackQueryHandler(task2, pattern="task2"))
+    application.add_handler(CallbackQueryHandler(task3, pattern="task3"))
+
+    # Start Bot
+    application.run_polling()
+
+if __name__ == "__main__":
+    main()
